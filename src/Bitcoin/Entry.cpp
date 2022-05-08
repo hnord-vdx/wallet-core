@@ -12,6 +12,7 @@
 #include "Signer.h"
 
 using namespace TW::Bitcoin;
+using namespace TW;
 using namespace std;
 
 bool Entry::validateAddress(TWCoinType coin, const string& address, byte p2pkh, byte p2sh, const char* hrp) const {
@@ -67,11 +68,22 @@ string Entry::normalizeAddress(TWCoinType coin, const string& address) const {
     }
 }
 
-string Entry::deriveAddress(TWCoinType coin, const PublicKey& publicKey, byte p2pkh, const char* hrp) const {
+string Entry::deriveAddress(TWCoinType coin, TWDerivation derivation, const PublicKey& publicKey, byte p2pkh, const char* hrp) const {
     switch (coin) {
         case TWCoinTypeBitcoin:
-        case TWCoinTypeDigiByte:
         case TWCoinTypeLitecoin:
+            switch (derivation) {
+                case TWDerivationBitcoinLegacy:
+                case TWDerivationLitecoinLegacy:
+                    return Address(publicKey, 0).string();
+
+                case TWDerivationBitcoinSegwit:
+                case TWDerivationDefault:
+                default:
+                    return SegwitAddress(publicKey, hrp).string();
+            }
+
+        case TWCoinTypeDigiByte:
         case TWCoinTypeViacoin:
         case TWCoinTypeBitcoinGold:
             return SegwitAddress(publicKey, hrp).string();
@@ -99,4 +111,36 @@ void Entry::sign(TWCoinType coin, const Data& dataIn, Data& dataOut) const {
 
 void Entry::plan(TWCoinType coin, const Data& dataIn, Data& dataOut) const {
     planTemplate<Signer, Proto::SigningInput>(dataIn, dataOut);
+}
+
+Data Entry::preImageHashes(TWCoinType coin, const Data& txInputData) const {
+    return txCompilerTemplate<Proto::SigningInput, Proto::PreSigningOutput>(
+        txInputData, [](const auto& input, auto& output) {
+            output = Signer::preImageHashes(input);
+        });
+}
+
+void Entry::compile(TWCoinType coin, const Data& txInputData, const std::vector<Data>& signatures, const std::vector<PublicKey>& publicKeys, Data& dataOut) const {
+    dataOut = txCompilerTemplate<Proto::SigningInput, Proto::SigningOutput>(
+        txInputData, [&](const auto& input, auto& output) {
+            if (signatures.size() == 0 || publicKeys.size() == 0) {
+                output.set_error(Common::Proto::Error_invalid_params);
+                output.set_error_message("empty signatures or publickeys");
+                return;
+            }
+
+            if (signatures.size() != publicKeys.size()) {
+                output.set_error(Common::Proto::Error_invalid_params);
+                output.set_error_message("signatures size and publickeys size not equal");
+                return;
+            }
+
+            HashPubkeyList externalSignatures;
+            auto n = signatures.size();
+            for (auto i = 0; i < n; ++i) {
+                externalSignatures.push_back(std::make_pair(signatures[i], publicKeys[i].bytes));
+            }
+
+            output = Signer::sign(input, externalSignatures);
+        });
 }

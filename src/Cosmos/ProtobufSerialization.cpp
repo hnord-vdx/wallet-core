@@ -15,6 +15,7 @@
 #include "Protobuf/crypto_secp256k1_keys.pb.h"
 #include "Protobuf/ibc_applications_transfer_tx.pb.h"
 #include "Protobuf/terra_wasm_v1beta1_tx.pb.h"
+#include "Protobuf/thorchain_bank_tx.pb.h"
 
 #include "PrivateKey.h"
 #include "Data.h"
@@ -146,6 +147,34 @@ google::protobuf::Any convertMessage(const Proto::Message& msg) {
                 any.PackFrom(msgExecute, ProtobufAnyNamespacePrefix);
                 return any;
             }
+
+        case Proto::Message::kThorchainSendMessage:
+            {
+                assert(msg.has_thorchain_send_message());
+                const auto& send = msg.thorchain_send_message();
+                auto msgSend =types::MsgSend();
+                msgSend.set_from_address(send.from_address());
+                msgSend.set_to_address(send.to_address());
+                for (auto i = 0; i < send.amounts_size(); ++i) {
+                    *msgSend.add_amount() = convertCoin(send.amounts(i));
+                }
+                any.PackFrom(msgSend, ProtobufAnyNamespacePrefix);
+                return any;
+            }
+        case Proto::Message::kWasmTerraExecuteContractGeneric: {
+            assert(msg.has_wasm_terra_execute_contract_generic());
+                const auto& wasmExecute = msg.wasm_terra_execute_contract_generic();
+                auto msgExecute = terra::wasm::v1beta1::MsgExecuteContract();
+                msgExecute.set_sender(wasmExecute.sender_address());
+                msgExecute.set_contract(wasmExecute.contract_address());
+                msgExecute.set_execute_msg(wasmExecute.execute_msg());
+
+                for (auto i = 0; i < wasmExecute.coins_size(); ++i) {
+                    *msgExecute.add_coins() = convertCoin(wasmExecute.coins(i));
+                }
+                any.PackFrom(msgExecute, ProtobufAnyNamespacePrefix);
+                return any;
+        }
 
         default:
             throw std::invalid_argument(std::string("Message not supported ") + std::to_string(msg.message_oneof_case()));

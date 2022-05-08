@@ -48,7 +48,6 @@
 #include "Tezos/Entry.h"
 #include "Theta/Entry.h"
 #include "Tron/Entry.h"
-#include "TrustWalletCore/TWCoinType.h"
 #include "VeChain/Entry.h"
 #include "Waves/Entry.h"
 #include "Zcash/Entry.h"
@@ -181,12 +180,30 @@ CoinEntry* coinDispatcher(TWCoinType coinType) {
         case TWCoinTypeRonin: entry = &roninDP; break;
         case TWCoinTypeCryptoOrg: entry = &cosmosDP; break;
         case TWCoinTypeOsmosis: entry = &cosmosDP; break;
+        case TWCoinTypeCronosChain: entry = &ethereumDP; break;
+        case TWCoinTypeSmartBitcoinCash: entry = &ethereumDP; break;
+        case TWCoinTypeKuCoinCommunityChain: entry = &ethereumDP; break;
+        case TWCoinTypeBoba: entry = &ethereumDP; break;
+        case TWCoinTypeMetis: entry = &ethereumDP; break;
+        case TWCoinTypeAurora: entry = &ethereumDP; break;
         // end_of_coin_dipatcher_switch_marker_do_not_modify
 
         default: entry = nullptr; break;
     }
     assert(entry != nullptr);
     return entry;
+}
+
+const Derivation CoinInfo::derivationByName(TWDerivation name) const {
+    if (name == TWDerivationDefault && derivation.size() > 0) {
+        return derivation[0];
+    }
+    for (auto deriv: derivation) {
+        if (deriv.name == name) {
+            return deriv;
+        }
+    }
+    return Derivation();
 }
 
 bool TW::validateAddress(TWCoinType coin, const std::string& string) {
@@ -213,18 +230,26 @@ std::string TW::normalizeAddress(TWCoinType coin, const std::string& address) {
 }
 
 std::string TW::deriveAddress(TWCoinType coin, const PrivateKey& privateKey) {
+    return TW::deriveAddress(coin, privateKey, TWDerivationDefault);
+}
+
+std::string TW::deriveAddress(TWCoinType coin, const PrivateKey& privateKey, TWDerivation derivation) {
     auto keyType = TW::publicKeyType(coin);
-    return TW::deriveAddress(coin, privateKey.getPublicKey(keyType));
+    return TW::deriveAddress(coin, privateKey.getPublicKey(keyType), derivation);
 }
 
 std::string TW::deriveAddress(TWCoinType coin, const PublicKey& publicKey) {
+    return deriveAddress(coin, publicKey, TWDerivationDefault);
+}
+
+std::string TW::deriveAddress(TWCoinType coin, const PublicKey& publicKey, TWDerivation derivation) {
     auto p2pkh = TW::p2pkhPrefix(coin);
     const auto* hrp = stringForHRP(TW::hrp(coin));
 
     // dispatch
     auto* dispatcher = coinDispatcher(coin);
     assert(dispatcher != nullptr);
-    return dispatcher->deriveAddress(coin, publicKey, p2pkh, hrp);
+    return dispatcher->deriveAddress(coin, derivation, publicKey, p2pkh, hrp);
 }
 
 void TW::anyCoinSign(TWCoinType coinType, const Data& dataIn, Data& dataOut) {
@@ -251,6 +276,24 @@ void TW::anyCoinPlan(TWCoinType coinType, const Data& dataIn, Data& dataOut) {
     dispatcher->plan(coinType, dataIn, dataOut);
 }
 
+Data TW::anyCoinPreImageHashes(TWCoinType coinType, const Data& txInputData) {
+    auto* dispatcher = coinDispatcher(coinType);
+    assert(dispatcher != nullptr);
+    return dispatcher->preImageHashes(coinType, txInputData);
+}
+
+void TW::anyCoinCompileWithSignatures(TWCoinType coinType, const Data& txInputData, const std::vector<Data>& signatures, const std::vector<PublicKey>& publicKeys, Data& txOutputOut) {
+    auto* dispatcher = coinDispatcher(coinType);
+    assert(dispatcher != nullptr);
+    dispatcher->compile(coinType, txInputData, signatures, publicKeys, txOutputOut);
+}
+
+Data TW::anyCoinBuildTransactionInput(TWCoinType coinType, const std::string& from, const std::string& to, const uint256_t& amount, const std::string& asset, const std::string& memo, const std::string& chainId) {
+    auto* dispatcher = coinDispatcher(coinType);
+    assert(dispatcher != nullptr);
+    return dispatcher->buildTransactionInput(coinType, from, to, amount, asset, memo, chainId);
+}
+
 // Coin info accessors
 
 extern const CoinInfo getCoinInfo(TWCoinType coin); // in generated CoinInfoData.cpp file
@@ -268,15 +311,31 @@ TWCurve TW::curve(TWCoinType coin) {
 }
 
 TWHDVersion TW::xpubVersion(TWCoinType coin) {
-    return getCoinInfo(coin).xpubVersion;
+    return getCoinInfo(coin).defaultDerivation().xpubVersion;
 }
 
 TWHDVersion TW::xprvVersion(TWCoinType coin) {
-    return getCoinInfo(coin).xprvVersion;
+    return getCoinInfo(coin).defaultDerivation().xprvVersion;
+}
+
+TWHDVersion TW::xpubVersionDerivation(TWCoinType coin, TWDerivation derivation) {
+    return getCoinInfo(coin).derivationByName(derivation).xpubVersion;
+}
+
+TWHDVersion TW::xprvVersionDerivation(TWCoinType coin, TWDerivation derivation) {
+    return getCoinInfo(coin).derivationByName(derivation).xprvVersion;
 }
 
 DerivationPath TW::derivationPath(TWCoinType coin) {
-    return DerivationPath(getCoinInfo(coin).derivationPath);
+    return DerivationPath(getCoinInfo(coin).defaultDerivation().path);
+}
+
+DerivationPath TW::derivationPath(TWCoinType coin, TWDerivation derivation) {
+    return DerivationPath(getCoinInfo(coin).derivationByName(derivation).path);
+}
+
+const char* TW::derivationName(TWCoinType coin, TWDerivation derivation) {
+    return getCoinInfo(coin).derivationByName(derivation).nameString;
 }
 
 enum TWPublicKeyType TW::publicKeyType(TWCoinType coin) {
