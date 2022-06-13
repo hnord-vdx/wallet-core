@@ -27,8 +27,6 @@ typedef std::vector<std::pair<Data, Data>> HashPubkeyList;
 /// Implement this for all coins.
 class CoinEntry {
 public:
-    // Report the coin types this implementation is responsible of
-    virtual const std::vector<TWCoinType> coinTypes() const = 0;
     virtual bool validateAddress(TWCoinType coin, const std::string& address, TW::byte p2pkh, TW::byte p2sh, const char* hrp) const = 0;
     // normalizeAddress is optional, it may leave this default, no-change implementation
     virtual std::string normalizeAddress(TWCoinType coin, const std::string& address) const { return address; }
@@ -81,8 +79,8 @@ void planTemplate(const Data& dataIn, Data& dataOut) {
 
 // This template will be used for preImageHashes and compile in each coin's Entry.cpp.
 // It is a helper function to simplify exception handle.
-template <typename Input, typename Output>
-Data txCompilerTemplate(const Data& dataIn, std::function<void(const Input& input, Output& output)> fnHandler) {
+template <typename Input, typename Output, typename Func>
+Data txCompilerTemplate(const Data& dataIn, Func&& fnHandler) {
     auto input = Input();
     auto output = Output();
     if (!input.ParseFromArray(dataIn.data(), (int)dataIn.size())) {
