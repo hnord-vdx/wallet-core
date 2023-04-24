@@ -1,4 +1,4 @@
-// Copyright © 2017-2021 Trust Wallet.
+// Copyright © 2017-2023 Trust Wallet.
 //
 // This file is part of Trust. The full Trust copyright notice, including
 // terms governing use, modification, and redistribution, is contained in the
@@ -34,11 +34,11 @@ public:
         : LinearFeeCalculator(gDecredBytesPerInput, gDecredBytesPerOutput, gDecredBytesBase) {}
 };
 
-constexpr DefaultFeeCalculator defaultFeeCalculator{};
-constexpr DecredFeeCalculator decredFeeCalculator{};
-constexpr SegwitFeeCalculator segwitFeeCalculator{};
+static constexpr DefaultFeeCalculator defaultFeeCalculator{};
+static constexpr DecredFeeCalculator decredFeeCalculator{};
+static constexpr SegwitFeeCalculator segwitFeeCalculator{};
 
-const FeeCalculator& getFeeCalculator(TWCoinType coinType) {
+const FeeCalculator& getFeeCalculator(TWCoinType coinType) noexcept {
     switch (coinType) {
     case TWCoinTypeDecred:
         return decredFeeCalculator;

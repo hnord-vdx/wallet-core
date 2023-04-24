@@ -1,4 +1,4 @@
-// Copyright © 2017-2020 Trust Wallet.
+// Copyright © 2017-2023 Trust Wallet.
 //
 // This file is part of Trust. The full Trust copyright notice, including
 // terms governing use, modification, and redistribution, is contained in the
@@ -7,7 +7,7 @@
 #pragma once
 
 #include "Address.h"
-#include "../Data.h"
+#include "Data.h"
 #include "../PublicKey.h"
 
 #include <TrustWalletCore/TWHRP.h>
@@ -52,6 +52,8 @@ public:
 
     /// Returns the legacy address representation.
     [[nodiscard]] Address legacyAddress() const noexcept;
+
+    Data getData() const;
 };
 
 class BitcoinCashAddress : public CashAddress {
@@ -78,6 +80,6 @@ public:
     static bool isValid(const std::string& string) noexcept {
         return CashAddress::isValid(gECashHrp, string);
     }
-};
+};  
 
 } // namespace TW::Bitcoin

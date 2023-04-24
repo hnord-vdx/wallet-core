@@ -1,4 +1,4 @@
-// Copyright © 2017-2021 Trust Wallet.
+// Copyright © 2017-2023 Trust Wallet.
 //
 // This file is part of Trust. The full Trust copyright notice, including
 // terms governing use, modification, and redistribution, is contained in the
@@ -20,9 +20,10 @@ inline constexpr double gSegwitBytesBase{gDefaultBytesBase};
 /// Interface for transaction fee calculator.
 class FeeCalculator {
 public:
+    virtual ~FeeCalculator() noexcept = default;
     [[nodiscard]] virtual int64_t calculate(int64_t inputs, int64_t outputs,
-                                            int64_t byteFee) const = 0;
-    [[nodiscard]] virtual int64_t calculateSingleInput(int64_t byteFee) const = 0;
+                                            int64_t byteFee) const noexcept = 0;
+    [[nodiscard]] virtual int64_t calculateSingleInput(int64_t byteFee) const noexcept = 0;
 };
 
 /// Generic fee calculator with linear input and output size, and a fix size
@@ -46,11 +47,11 @@ public:
     const int64_t fee;
     explicit constexpr ConstantFeeCalculator(int64_t fee) noexcept : fee(fee) {}
 
-    [[nodiscard]] int64_t calculate(int64_t inputs, int64_t outputs,
-                                    int64_t byteFee) const noexcept final {
+    [[nodiscard]] int64_t calculate([[maybe_unused]] int64_t inputs, [[maybe_unused]] int64_t outputs,
+                                    [[maybe_unused]] int64_t byteFee) const noexcept final {
         return fee;
     }
-    [[nodiscard]] int64_t calculateSingleInput(int64_t byteFee) const noexcept final { return 0; }
+    [[nodiscard]] int64_t calculateSingleInput([[maybe_unused]] int64_t byteFee) const noexcept final { return 0; }
 };
 
 /// Default Bitcoin transaction fee calculator, non-segwit.
@@ -68,6 +69,6 @@ public:
 };
 
 /// Return the fee calculator for the given coin.
-const FeeCalculator& getFeeCalculator(TWCoinType coinType);
+const FeeCalculator& getFeeCalculator(TWCoinType coinType) noexcept;
 
 } // namespace TW::Bitcoin
